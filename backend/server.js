@@ -9,6 +9,7 @@ const inventoryRoutes = require("./src/routes/inventoryRoutes");
 const orderRoutes = require("./src/routes/orderRoutes");
 const reportRoutes = require("./src/routes/reportRoutes");
 const simpleRoutes = require("./src/routes/simpleRoutes");
+const setupDatabase = require("./src/config/setup");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -35,6 +36,13 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`KitchenIQ backend running on http://localhost:${port}`);
-});
+setupDatabase()
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`KitchenIQ backend running on http://localhost:${port}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Database setup failed:", error.message);
+    process.exit(1);
+  });

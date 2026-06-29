@@ -36,14 +36,49 @@ const images = {
 
 const foodImages = {
   "Margherita Pizza": "https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&w=800&q=80",
+  "Cheese Pizza": "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
   "Veg Burger": "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80",
   "Cold Coffee": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=800&q=80",
   "Paneer Tikka": "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=80",
   "Masala Dosa": "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=800&q=80",
-  "Chocolate Brownie": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80"
+  "Chocolate Brownie": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80",
+  "Veg Thali": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
+  "Manchurian": "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=800&q=80",
+  "Tomato Soup": "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80",
+  "Club Sandwich": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=800&q=80"
+};
+
+const categoryImages = {
+  Breakfast: "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80",
+  "South Indian": "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=800&q=80",
+  "North Indian": "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80",
+  Starters: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=80",
+  Soups: "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80",
+  Salads: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
+  Pizza: "https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&w=800&q=80",
+  Burger: "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80",
+  Sandwich: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=800&q=80",
+  Chinese: "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=800&q=80",
+  "Rice & Biryani": "https://images.unsplash.com/photo-1631515242808-497c3fbd3972?auto=format&fit=crop&w=800&q=80",
+  Thali: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
+  Tandoor: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=800&q=80",
+  Breads: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80",
+  Drinks: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=800&q=80",
+  Mocktails: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=800&q=80",
+  Desserts: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80"
 };
 
 const fallbackFoodImage = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80";
+
+function getMenuImage(item) {
+  return (
+    item.image_url ||
+    foodImages[item.name] ||
+    item.category_image_url ||
+    categoryImages[item.category_name] ||
+    fallbackFoodImage
+  );
+}
 
 const roleAccess = {
   admin: ["dashboard", "menu", "inventory", "pos", "vendors", "staff", "customers", "waste", "reports"],
@@ -352,8 +387,10 @@ function DataTable({ columns, rows }) {
 function MenuPage() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState({ name: "", category_id: "", price: "", cost_price: "" });
+  const [form, setForm] = useState({ name: "", category_id: "", price: "", cost_price: "", image_url: "" });
+  const [newCatName, setNewCatName] = useState("");
   const [error, setError] = useState("");
+  const [catError, setCatError] = useState("");
 
   async function load() {
     setItems(await api("/menu/items"));
@@ -366,9 +403,34 @@ function MenuPage() {
 
   async function submit(event) {
     event.preventDefault();
-    await api("/menu/items", { method: "POST", body: JSON.stringify(form) });
-    setForm({ name: "", category_id: "", price: "", cost_price: "" });
-    await load();
+    if (!form.name || !form.price) {
+      setError("Name and Price are required");
+      return;
+    }
+    try {
+      await api("/menu/items", { method: "POST", body: JSON.stringify(form) });
+      setForm({ name: "", category_id: "", price: "", cost_price: "", image_url: "" });
+      setError("");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function addCategory(event) {
+    event.preventDefault();
+    if (!newCatName.trim()) return;
+    try {
+      await api("/menu/categories", {
+        method: "POST",
+        body: JSON.stringify({ name: newCatName, image_url: categoryImages[newCatName] || "" })
+      });
+      setNewCatName("");
+      setCatError("");
+      await load();
+    } catch (err) {
+      setCatError(err.message);
+    }
   }
 
   async function remove(id) {
@@ -379,32 +441,63 @@ function MenuPage() {
   return (
     <>
       <PageHeader title="Menu Management" subtitle="Build a photo-rich menu with selling price, cost price and profit." image={images.menu} kicker="Food catalog" />
-      {error && <p className="error">{error}</p>}
-      <form className="inline-form" onSubmit={submit}>
-        <input placeholder="Food name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
-          <option value="">Category</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-        <input placeholder="Price" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-        <input
-          placeholder="Cost"
-          value={form.cost_price}
-          onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
-        />
-        <button className="primary-btn" type="submit">
-          <Plus size={16} />
-          Add
-        </button>
-      </form>
+      {error && <p className="error" style={{ marginBottom: "14px" }}>{error}</p>}
+      
+      <div className="menu-forms-grid">
+        <section className="form-section">
+          <h4>Add New Category</h4>
+          <form className="inline-form compact-form" onSubmit={addCategory}>
+            <input 
+              placeholder="Category (e.g., Soups)" 
+              value={newCatName} 
+              onChange={(e) => setNewCatName(e.target.value)} 
+            />
+            <button className="ghost-btn" type="submit">
+              <Plus size={16} />
+              Add
+            </button>
+          </form>
+          {catError && <p className="error small-error">{catError}</p>}
+        </section>
+
+        <section className="form-section">
+          <h4>Add Menu Item</h4>
+          <div className="help-note">
+            <strong>Hotel example:</strong> Selling price is what customer pays. Cost is what restaurant spends to make it.
+            If pizza sells at Rs 249 and cost is Rs 95, profit is Rs 154.
+          </div>
+          <form className="inline-form" onSubmit={submit}>
+            <input placeholder="Food name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
+              <option value="">Category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <input placeholder="Price" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+            <input
+              placeholder="Cost"
+              value={form.cost_price}
+              onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+            />
+            <input
+              placeholder="Image URL optional"
+              value={form.image_url}
+              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+            />
+            <button className="primary-btn" type="submit">
+              <Plus size={16} />
+              Add Item
+            </button>
+          </form>
+        </section>
+      </div>
       <section className="menu-gallery">
         {items.map((item) => (
           <article className="menu-card" key={item.id}>
-            <img src={foodImages[item.name] || fallbackFoodImage} alt={item.name} />
+            <img src={getMenuImage(item)} alt={item.name} />
             <div>
               <span>{item.category_name || "Kitchen"}</span>
               <h3>{item.name}</h3>
@@ -470,16 +563,22 @@ function InventoryPage() {
       <section className="panel image-table">
         <DataTable
           columns={["Ingredient", "Qty", "Unit Cost", "Total", "Reorder", ""]}
-          rows={items.map((item) => [
-            item.name,
-            `${item.quantity} ${item.unit}`,
-            money(item.unit_cost),
-            money(Number(item.quantity) * Number(item.unit_cost)),
-            item.reorder_level,
-            <button className="icon-btn" onClick={() => remove(item.id)} title="Delete ingredient">
-              <Trash2 size={16} />
-            </button>
-          ])}
+          rows={items.map((item) => {
+            const isLow = Number(item.quantity) <= Number(item.reorder_level);
+            return [
+              item.name,
+              <span className={isLow ? "low-stock-alert" : ""}>
+                {item.quantity} {item.unit}
+                {isLow && <span className="low-stock-badge">Low</span>}
+              </span>,
+              money(item.unit_cost),
+              money(Number(item.quantity) * Number(item.unit_cost)),
+              item.reorder_level,
+              <button className="icon-btn" onClick={() => remove(item.id)} title="Delete ingredient">
+                <Trash2 size={16} />
+              </button>
+            ];
+          })}
         />
       </section>
     </>
@@ -492,6 +591,7 @@ function PosPage() {
   const [tableNumber, setTableNumber] = useState("1");
   const [discount, setDiscount] = useState("0");
   const [message, setMessage] = useState("");
+  const [lastBill, setLastBill] = useState(null);
 
   useEffect(() => {
     api("/menu/items").then(setMenu);
@@ -514,16 +614,30 @@ function PosPage() {
   const total = subtotal - Number(discount || 0) + tax;
 
   async function createBill() {
-    const result = await api("/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        table_number: tableNumber,
-        discount,
-        items: cart.map((item) => ({ menu_item_id: item.id, quantity: item.quantity }))
-      })
-    });
-    setMessage(`Bill #${result.id} created: ${money(result.total_amount)}`);
-    setCart([]);
+    try {
+      const result = await api("/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          table_number: tableNumber,
+          discount,
+          items: cart.map((item) => ({ menu_item_id: item.id, quantity: item.quantity }))
+        })
+      });
+      
+      const fullOrder = await api(`/orders/${result.id}`);
+      setLastBill(fullOrder);
+      setMessage(`Bill #${result.id} created successfully!`);
+      setCart([]);
+    } catch (err) {
+      setMessage(`Error: ${err.message}`);
+    }
+  }
+
+  function resetBill() {
+    setLastBill(null);
+    setMessage("");
+    setTableNumber("1");
+    setDiscount("0");
   }
 
   return (
@@ -533,7 +647,7 @@ function PosPage() {
         <section className="panel item-grid pos-items">
           {menu.map((item) => (
             <button key={item.id} className="food-button" onClick={() => add(item)}>
-              <img src={foodImages[item.name] || fallbackFoodImage} alt={item.name} />
+              <img src={getMenuImage(item)} alt={item.name} />
               <strong>{item.name}</strong>
               <span>{money(item.price)}</span>
             </button>
@@ -543,7 +657,7 @@ function PosPage() {
           <h3>Current Bill</h3>
           <label>
             Table
-            <input value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
+            <input value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} disabled={!!lastBill} />
           </label>
           {cart.map((item) => (
             <div className="bill-line" key={item.id}>
@@ -555,20 +669,84 @@ function PosPage() {
           ))}
           <label>
             Discount
-            <input value={discount} onChange={(e) => setDiscount(e.target.value)} />
+            <input value={discount} onChange={(e) => setDiscount(e.target.value)} disabled={!!lastBill} />
           </label>
           <div className="totals">
             <span>Subtotal {money(subtotal)}</span>
             <span>GST 5% {money(tax)}</span>
             <strong>Total {money(total)}</strong>
           </div>
-          {message && <p className="success">{message}</p>}
-          <button className="primary-btn" disabled={!cart.length} onClick={createBill}>
-            <ReceiptText size={16} />
-            Generate Bill
-          </button>
+          
+          {message && <p className={message.startsWith("Error") ? "error" : "success"}>{message}</p>}
+          
+          {lastBill ? (
+            <div style={{ display: "grid", gap: "10px", marginTop: "10px" }}>
+              <button className="primary-btn" onClick={() => window.print()}>
+                <ReceiptText size={16} />
+                Print Receipt
+              </button>
+              <button className="ghost-btn" onClick={resetBill}>
+                New Bill
+              </button>
+            </div>
+          ) : (
+            <button className="primary-btn" disabled={!cart.length} onClick={createBill}>
+              <ReceiptText size={16} />
+              Generate Bill
+            </button>
+          )}
         </section>
       </div>
+
+      {lastBill && (
+        <div className="print-receipt-only">
+          <div className="receipt-header">
+            <h2>KitchenIQ</h2>
+            <p>Delicious food, smart management</p>
+            <hr style={{ borderTop: "1px dashed #000", borderBottom: "none", margin: "10px 0" }} />
+          </div>
+          <div className="receipt-meta">
+            <p><strong>Order ID:</strong> #{lastBill.id}</p>
+            <p><strong>Table:</strong> {lastBill.table_number || "Takeaway"}</p>
+            <p><strong>Date:</strong> {new Date(lastBill.created_at).toLocaleString("en-IN")}</p>
+          </div>
+          <table className="receipt-items-table">
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left" }}>Item</th>
+                <th style={{ textAlign: "center" }}>Qty</th>
+                <th style={{ textAlign: "right" }}>Price</th>
+                <th style={{ textAlign: "right" }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lastBill.items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td style={{ textAlign: "center" }}>{item.quantity}</td>
+                  <td style={{ textAlign: "right" }}>{money(item.price)}</td>
+                  <td style={{ textAlign: "right" }}>{money(item.line_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="receipt-summary">
+            <div><span>Subtotal:</span> <span>{money(lastBill.subtotal)}</span></div>
+            {Number(lastBill.discount) > 0 && (
+              <div><span>Discount:</span> <span>-{money(lastBill.discount)}</span></div>
+            )}
+            <div><span>GST (5%):</span> <span>{money(lastBill.tax)}</span></div>
+            <div className="receipt-grand-total">
+              <span>Grand Total:</span> <span>{money(lastBill.total_amount)}</span>
+            </div>
+          </div>
+          <div className="receipt-footer">
+            <hr style={{ borderTop: "1px dashed #000", borderBottom: "none", margin: "10px 0" }} />
+            <p>Thank you for dining with us!</p>
+            <p>Please visit again</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }
