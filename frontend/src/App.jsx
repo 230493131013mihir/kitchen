@@ -384,6 +384,15 @@ function DataTable({ columns, rows }) {
   );
 }
 
+function EmptyState({ title, text }) {
+  return (
+    <div className="empty-state">
+      <strong>{title}</strong>
+      <p>{text}</p>
+    </div>
+  );
+}
+
 function MenuPage() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -495,20 +504,27 @@ function MenuPage() {
         </section>
       </div>
       <section className="menu-gallery">
-        {items.map((item) => (
-          <article className="menu-card" key={item.id}>
-            <img src={getMenuImage(item)} alt={item.name} />
-            <div>
-              <span>{item.category_name || "Kitchen"}</span>
-              <h3>{item.name}</h3>
-              <p>Cost {money(item.cost_price)} | Profit {money(Number(item.price) - Number(item.cost_price))}</p>
-              <strong>{money(item.price)}</strong>
-              <button className="icon-btn" onClick={() => remove(item.id)} title="Delete item">
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </article>
-        ))}
+        {items.length ? (
+          items.map((item) => (
+            <article className="menu-card" key={item.id}>
+              <img src={getMenuImage(item)} alt={item.name} />
+              <div>
+                <span>{item.category_name || "Kitchen"}</span>
+                <h3>{item.name}</h3>
+                <p>Cost {money(item.cost_price)} | Profit {money(Number(item.price) - Number(item.cost_price))}</p>
+                <strong>{money(item.price)}</strong>
+                <button className="icon-btn" onClick={() => remove(item.id)} title="Delete item">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </article>
+          ))
+        ) : (
+          <EmptyState
+            title="No food items yet"
+            text="Add your first item like Paneer Tikka, Masala Dosa, Veg Burger or Cold Coffee. After that it appears in POS Billing."
+          />
+        )}
       </section>
     </>
   );
@@ -517,9 +533,15 @@ function MenuPage() {
 function InventoryPage() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ name: "", unit: "kg", quantity: "", unit_cost: "", reorder_level: "" });
+  const [error, setError] = useState("");
 
   async function load() {
-    setItems(await api("/inventory"));
+    try {
+      setItems(await api("/inventory"));
+      setError("");
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   useEffect(() => {
@@ -528,9 +550,13 @@ function InventoryPage() {
 
   async function submit(event) {
     event.preventDefault();
-    await api("/inventory", { method: "POST", body: JSON.stringify(form) });
-    setForm({ name: "", unit: "kg", quantity: "", unit_cost: "", reorder_level: "" });
-    await load();
+    try {
+      await api("/inventory", { method: "POST", body: JSON.stringify(form) });
+      setForm({ name: "", unit: "kg", quantity: "", unit_cost: "", reorder_level: "" });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function remove(id) {
@@ -541,6 +567,7 @@ function InventoryPage() {
   return (
     <>
       <PageHeader title="Inventory" subtitle="Track ingredients, stock value, low stock and reorder level." image={images.inventory} kicker="Store room" />
+      {error && <p className="error" style={{ marginBottom: "14px" }}>{error}</p>}
       <form className="inline-form" onSubmit={submit}>
         <input placeholder="Ingredient" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input placeholder="Unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
@@ -561,25 +588,32 @@ function InventoryPage() {
         </button>
       </form>
       <section className="panel image-table">
-        <DataTable
-          columns={["Ingredient", "Qty", "Unit Cost", "Total", "Reorder", ""]}
-          rows={items.map((item) => {
-            const isLow = Number(item.quantity) <= Number(item.reorder_level);
-            return [
-              item.name,
-              <span className={isLow ? "low-stock-alert" : ""}>
-                {item.quantity} {item.unit}
-                {isLow && <span className="low-stock-badge">Low</span>}
-              </span>,
-              money(item.unit_cost),
-              money(Number(item.quantity) * Number(item.unit_cost)),
-              item.reorder_level,
-              <button className="icon-btn" onClick={() => remove(item.id)} title="Delete ingredient">
-                <Trash2 size={16} />
-              </button>
-            ];
-          })}
-        />
+        {items.length ? (
+          <DataTable
+            columns={["Ingredient", "Qty", "Unit Cost", "Total", "Reorder", ""]}
+            rows={items.map((item) => {
+              const isLow = Number(item.quantity) <= Number(item.reorder_level);
+              return [
+                item.name,
+                <span className={isLow ? "low-stock-alert" : ""}>
+                  {item.quantity} {item.unit}
+                  {isLow && <span className="low-stock-badge">Low</span>}
+                </span>,
+                money(item.unit_cost),
+                money(Number(item.quantity) * Number(item.unit_cost)),
+                item.reorder_level,
+                <button className="icon-btn" onClick={() => remove(item.id)} title="Delete ingredient">
+                  <Trash2 size={16} />
+                </button>
+              ];
+            })}
+          />
+        ) : (
+          <EmptyState
+            title="No stock items yet"
+            text="Add ingredients like Tomato, Paneer, Cheese, Milk or Oil. Inventory cost then appears on the dashboard."
+          />
+        )}
       </section>
     </>
   );
@@ -592,9 +626,10 @@ function PosPage() {
   const [discount, setDiscount] = useState("0");
   const [message, setMessage] = useState("");
   const [lastBill, setLastBill] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api("/menu/items").then(setMenu);
+    api("/menu/items").then(setMenu).catch((err) => setError(err.message));
   }, []);
 
   function add(item) {
@@ -643,15 +678,23 @@ function PosPage() {
   return (
     <>
       <PageHeader title="POS Billing" subtitle="Select food photos, build a bill, apply GST and save the order." image={images.pos} kicker="Live cashier" />
+      {error && <p className="error" style={{ marginBottom: "14px" }}>{error}</p>}
       <div className="pos-grid">
         <section className="panel item-grid pos-items">
-          {menu.map((item) => (
-            <button key={item.id} className="food-button" onClick={() => add(item)}>
-              <img src={getMenuImage(item)} alt={item.name} />
-              <strong>{item.name}</strong>
-              <span>{money(item.price)}</span>
-            </button>
-          ))}
+          {menu.length ? (
+            menu.map((item) => (
+              <button key={item.id} className="food-button" onClick={() => add(item)}>
+                <img src={getMenuImage(item)} alt={item.name} />
+                <strong>{item.name}</strong>
+                <span>{money(item.price)}</span>
+              </button>
+            ))
+          ) : (
+            <EmptyState
+              title="POS is waiting for menu items"
+              text="Go to Menu, add food with price, then come back here to create bills."
+            />
+          )}
         </section>
         <section className="panel bill-panel receipt-card">
           <h3>Current Bill</h3>
@@ -753,33 +796,44 @@ function PosPage() {
 
 function ReportsPage() {
   const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api("/reports/daily").then(setRows);
+    api("/reports/daily").then(setRows).catch((err) => setError(err.message));
   }, []);
 
   return (
     <>
       <PageHeader title="Reports" subtitle="Daily sales, order count and estimated profit with real order data." image={images.reports} kicker="Analytics" />
+      {error && <p className="error" style={{ marginBottom: "14px" }}>{error}</p>}
       <section className="panel visual-panel">
-        <div className="report-bars">
-          {rows.slice(0, 7).map((row) => (
-            <div key={row.day}>
-              <span>{new Date(row.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>
-              <b style={{ height: `${Math.max(20, Math.min(Number(row.sales || 0) / 80, 180))}px` }} />
-              <strong>{money(row.sales)}</strong>
+        {rows.length ? (
+          <>
+            <div className="report-bars">
+              {rows.slice(0, 7).map((row) => (
+                <div key={row.day}>
+                  <span>{new Date(row.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>
+                  <b style={{ height: `${Math.max(20, Math.min(Number(row.sales || 0) / 80, 180))}px` }} />
+                  <strong>{money(row.sales)}</strong>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <DataTable
-          columns={["Day", "Orders", "Sales", "Estimated Profit"]}
-          rows={rows.map((row) => [
-            new Date(row.day).toLocaleDateString(),
-            row.orders,
-            money(row.sales),
-            money(row.estimated_profit)
-          ])}
-        />
+            <DataTable
+              columns={["Day", "Orders", "Sales", "Estimated Profit"]}
+              rows={rows.map((row) => [
+                new Date(row.day).toLocaleDateString(),
+                row.orders,
+                money(row.sales),
+                money(row.estimated_profit)
+              ])}
+            />
+          </>
+        ) : (
+          <EmptyState
+            title="No report data yet"
+            text="Create a bill in POS Billing. After that daily sales and profit reports appear here."
+          />
+        )}
       </section>
     </>
   );
@@ -852,9 +906,15 @@ function SimpleModulePage({ type }) {
   const emptyForm = Object.fromEntries(config.fields.map((field) => [field.name, ""]));
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState("");
 
   async function load() {
-    setRows(await api(config.endpoint));
+    try {
+      setRows(await api(config.endpoint));
+      setError("");
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   useEffect(() => {
@@ -863,9 +923,13 @@ function SimpleModulePage({ type }) {
 
   async function submit(event) {
     event.preventDefault();
-    await api(config.endpoint, { method: "POST", body: JSON.stringify(form) });
-    setForm(emptyForm);
-    await load();
+    try {
+      await api(config.endpoint, { method: "POST", body: JSON.stringify(form) });
+      setForm(emptyForm);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function remove(id) {
@@ -876,6 +940,7 @@ function SimpleModulePage({ type }) {
   return (
     <>
       <PageHeader title={config.title} subtitle={config.subtitle} image={config.image} kicker={config.kicker} />
+      {error && <p className="error" style={{ marginBottom: "14px" }}>{error}</p>}
       <form className="inline-form" onSubmit={submit}>
         {config.fields.map((field) => (
           <input
@@ -891,15 +956,19 @@ function SimpleModulePage({ type }) {
         </button>
       </form>
       <section className="panel">
-        <DataTable
-          columns={[...config.columns, ""]}
-          rows={rows.map((item) => [
-            ...config.row(item),
-            <button className="icon-btn" onClick={() => remove(item.id)} title="Delete record">
-              <Trash2 size={16} />
-            </button>
-          ])}
-        />
+        {rows.length ? (
+          <DataTable
+            columns={[...config.columns, ""]}
+            rows={rows.map((item) => [
+              ...config.row(item),
+              <button className="icon-btn" onClick={() => remove(item.id)} title="Delete record">
+                <Trash2 size={16} />
+              </button>
+            ])}
+          />
+        ) : (
+          <EmptyState title={`No ${config.title.toLowerCase()} yet`} text={`Add your first ${config.title.toLowerCase()} record using the form above.`} />
+        )}
       </section>
     </>
   );
